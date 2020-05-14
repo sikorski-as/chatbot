@@ -1,10 +1,12 @@
 import pickle
 import string
 
+import numpy as np
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 
-def load_data(directory, filename) -> (list, list):
+def load_data(directory: string, filename: string) -> (list, list):
     answers_file = open(f"{directory}/{filename}.from", encoding="utf-8")
     questions_file = open(f"{directory}/{filename}.to", encoding="utf-8")
     answers_raw = answers_file.readlines()
@@ -16,7 +18,7 @@ def load_data(directory, filename) -> (list, list):
     return questions, answers
 
 
-def create_tokenizer(sequences: list, num_words=15001, oov_token='UNK'):
+def create_tokenizer(sequences: list, num_words: int, oov_token: string):
     tokenizer = Tokenizer(num_words=num_words, oov_token=oov_token)
     tokenizer.fit_on_texts(sequences)
     return tokenizer
@@ -49,3 +51,23 @@ def tokenize_q_a(tokenizer: Tokenizer, questions: list, answers: list) -> (list,
     tokenized_answers = tokenized_answers_good
 
     return tokenized_questions, tokenized_answers
+
+
+def prepare_data(tokenized_questions, tokenized_answers) -> (int, int, list, list, list):
+    # encoder_input_data
+    max_len_questions = max([len(x) for x in tokenized_questions])
+    padded_questions = pad_sequences(tokenized_questions, maxlen=max_len_questions, padding='post')
+    encoder_input_data = np.array(padded_questions)
+
+    # decoder_input_data
+    max_len_answers = max([len(x) for x in tokenized_answers])
+    padded_answers = pad_sequences(tokenized_answers, maxlen=max_len_answers, padding='post')
+    decoder_input_data = np.array(padded_answers)
+
+    # decoder_output_data
+    for i in range(len(tokenized_answers)):
+        tokenized_answers[i] = tokenized_answers[i][1:]
+    padded_answers = pad_sequences(tokenized_answers, maxlen=max_len_answers, padding='post')
+    decoder_output_data = np.array(padded_answers)
+
+    return max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data

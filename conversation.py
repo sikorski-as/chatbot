@@ -1,39 +1,21 @@
-from tensorflow.keras import layers, activations, models, preprocessing, utils
-# import tensorflow as tf
+from keras_preprocessing.text import Tokenizer
+from tensorflow.keras import layers, preprocessing
 from tensorflow.keras.models import Model, load_model
-# from tensorflow.keras.layers import Input
 import numpy as np
 
-if __name__ == '__main__':
-    answers_file = open("prepare_data/output_files/train2_good.from", encoding="utf-8")
-    questions_file = open("prepare_data/output_files/train2_good.to", encoding="utf-8")
-    answers_raw = answers_file.readlines()
-    questions_raw = questions_file.readlines()
-    answers = list()
-    for answer in answers_raw:
-        answers.append('<START> ' + answer + ' <END>')
-    questions = questions_raw
-
-    tokenizer = preprocessing.text.Tokenizer(num_words=15001, oov_token=15000)
-    tokenizer.fit_on_texts(questions + answers)
-    VOCAB_SIZE = 15001 # len(tokenizer.word_index) + 1
-    print('VOCAB SIZE : {}'.format(VOCAB_SIZE))
-    tokenized_questions = tokenizer.texts_to_sequences(questions)
-    maxlen_questions = max([len(x) for x in tokenized_questions])
-    tokenized_answers = tokenizer.texts_to_sequences(answers)
-    maxlen_answers = max([len(x) for x in tokenized_answers])
+from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 
 
-    model = load_model('model_200_2.h5')
+def str_to_tokens(tokenizer: Tokenizer, sentence: str, max_len_questions):
+    words = sentence.lower().split()
+    tokens_list = list()
+    for word in words:
+        tokens_list.append(tokenizer.word_index[word])
+    return preprocessing.sequence.pad_sequences([tokens_list], maxlen=max_len_questions, padding='post')
 
-    encoder_inputs = model.input[0]   # input_1
-    encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output   # lstm_1
-    encoder_states = [state_h_enc, state_c_enc]
+
+def make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense):
     encoder_model = Model(encoder_inputs, encoder_states)
-
-    decoder_inputs = model.input[1]   # input_2
-    decoder_embedding = model.layers[3].output
-    decoder_lstm = model.layers[5]
 
     decoder_state_input_h = layers.Input(shape=(200,), name="input_h")
     decoder_state_input_c = layers.Input(shape=(200,), name="input_c")
@@ -43,31 +25,40 @@ if __name__ == '__main__':
     decoder_outputs, state_h_dec, state_c_dec = decoder_lstm(
         decoder_embedding, initial_state=decoder_states_inputs)
     decoder_states = [state_h_dec, state_c_dec]
-    decoder_dense = model.layers[6]
+
     decoder_outputs = decoder_dense(decoder_outputs)
 
-    def make_inference_models():
+    decoder_model = Model(
+        [decoder_inputs] + decoder_states_inputs,
+        [decoder_outputs] + decoder_states)
 
-        encoder_model = Model(encoder_inputs, encoder_states)
+    return encoder_model, decoder_model
 
 
-        decoder_model = Model(
-            [decoder_inputs] + decoder_states_inputs,
-            [decoder_outputs] + decoder_states)
+if __name__ == '__main__':
+    questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
+    VOCAB_SIZE = 15001
+    tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
+    tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
 
-        return encoder_model, decoder_model
+    max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
+        prepare_data(tokenized_questions, tokenized_answers)
 
-    def str_to_tokens( sentence : str ):
-        words = sentence.lower().split()
-        tokens_list = list()
-        for word in words:
-            tokens_list.append( tokenizer.word_index[ word ] )
-        return preprocessing.sequence.pad_sequences( [tokens_list] , maxlen=maxlen_questions , padding='post')
+    model = load_model('model_test.h5')
 
-    enc_model, dec_model = make_inference_models()
+    encoder_inputs = model.input[0]  # input_1
+    encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output  # lstm_1
+    encoder_states = [state_h_enc, state_c_enc]
+
+    decoder_inputs = model.input[1]  # input_2
+    decoder_embedding = model.layers[3].output
+    decoder_lstm = model.layers[5]
+    decoder_dense = model.layers[6]
+
+    enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense)
 
     for _ in range(10):
-        states_values = enc_model.predict(str_to_tokens(input('Enter question : ')))
+        states_values = enc_model.predict(str_to_tokens(tokenizer, input('Enter question : '), max_len_questions))
         empty_target_seq = np.zeros((1, 1))
         empty_target_seq[0, 0] = tokenizer.word_index['start']
         stop_condition = False
@@ -81,7 +72,7 @@ if __name__ == '__main__':
                     decoded_translation += ' {}'.format(word)
                     sampled_word = word
 
-            if sampled_word == 'end' or len(decoded_translation.split()) > maxlen_answers:
+            if sampled_word == 'end' or len(decoded_translation.split()) > max_len_answers:
                 stop_condition = True
 
             empty_target_seq = np.zeros((1, 1))
