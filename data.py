@@ -7,15 +7,15 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 
 
 def load_data(directory: string, filename: string) -> (list, list):
-    answers_file = open(f"{directory}/{filename}.from", encoding="utf-8")
-    questions_file = open(f"{directory}/{filename}.to", encoding="utf-8")
-    answers_raw = answers_file.readlines()
-    questions_raw = questions_file.readlines()
-    answers = list()
-    for answer in answers_raw:
-        answers.append('<START> ' + answer + ' <END>')
-    questions = questions_raw
-    return questions, answers
+    with open(f"{directory}/{filename}.from", encoding="utf-8") as answers_file,\
+            open(f"{directory}/{filename}.to", encoding="utf-8") as questions_file:
+        answers_raw = answers_file.readlines()
+        questions_raw = questions_file.readlines()
+        answers = list()
+        for answer in answers_raw:
+            answers.append('<START> ' + answer + ' <END>')
+        questions = questions_raw
+        return questions, answers
 
 
 def create_tokenizer(sequences: list, num_words: int, oov_token: string):

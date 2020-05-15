@@ -5,7 +5,7 @@ from tensorflow.keras import preprocessing
 MAX_LENGTH = 60
 
 FORBIDDEN_WORDS = (
-'fuck', 'fucking', 'fuckin', 'cock', 'pussy', 'sex', 'idiot', 'dick', 'imbecile', 'faggot', 'moron', 'shit', 'porn')
+    'fuck', 'fucking', 'fuckin', 'cock', 'pussy', 'sex', 'idiot', 'dick', 'imbecile', 'faggot', 'moron', 'shit', 'porn')
 UNNECESSARY_WORDS = (' the ', ' a ', ' an ', 'newlinechar')
 
 spell_checker = SpellChecker()
@@ -59,7 +59,8 @@ def erase_wrong_comments(token_comments, token_replies, wrong_tokens: set):
     indexes = []
     for i, (token_comment, token_reply) in enumerate(zip(token_comments, token_replies)):
         correct = True
-        if (len(token_comment) > MAX_LENGTH or len(token_reply) > MAX_LENGTH) or (len(token_comment) == 0 or len(token_reply) == 0):
+        if (len(token_comment) > MAX_LENGTH or len(token_reply) > MAX_LENGTH) or (
+                len(token_comment) == 0 or len(token_reply) == 0):
             continue
         for token, token2 in zip(token_comment, token_reply):
             if token in wrong_tokens or token2 in wrong_tokens:
@@ -83,8 +84,8 @@ def tokenize_text(text: list):
 
 
 def save_comments(parent_lines: List[str], reply_lines: List[str], indexes: list):
-    with open("../output_files/preprocessed_train.from", mode="w", encoding="utf-8") as p_f:
-        with open("../output_files/preprocessed_train.to", mode="w", encoding="utf-8") as r_f:
+    with open("output_files/preprocessed_train.from", mode="w", encoding="utf-8") as p_f:
+        with open("output_files/preprocessed_train.to", mode="w", encoding="utf-8") as r_f:
             for index in indexes:
                 p_f.write(parent_lines[index])
                 r_f.write(reply_lines[index])
@@ -93,12 +94,12 @@ def save_comments(parent_lines: List[str], reply_lines: List[str], indexes: list
 def preprocess(parent_comment_file="output_files/train.from", reply_comment_file="output_files/train.to"):
     parent_lines = []
     reply_lines = []
-    with open(parent_comment_file, mode="r", encoding="utf8") as parent_file:
-        with open(reply_comment_file, mode="r", encoding="utf8") as reply_file:
-            for parent_line, reply_line in correct_lines(parent_file, reply_file):
-                if len(parent_line.split()) <= MAX_LENGTH and len(reply_line.split()) <= MAX_LENGTH:
-                    parent_lines.append(parent_line)
-                    reply_lines.append(reply_line)
+    with open(parent_comment_file, mode="r", encoding="utf8") as parent_file, \
+            open(reply_comment_file, mode="r", encoding="utf8") as reply_file:
+        for parent_line, reply_line in correct_lines(parent_file, reply_file):
+            if len(parent_line.split()) <= MAX_LENGTH and len(reply_line.split()) <= MAX_LENGTH:
+                parent_lines.append(parent_line)
+                reply_lines.append(reply_line)
 
     tokenized_from = tokenize_text(parent_lines)
     tokenized_to = tokenize_text(reply_lines)
