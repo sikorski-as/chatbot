@@ -1,7 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.client import device_lib
-from tensorflow.keras import layers, activations, models, preprocessing, utils
 
 from tensorflow.python.keras.callbacks import ModelCheckpoint
 
@@ -10,6 +8,8 @@ from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 
 if __name__ == '__main__':
     questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
+    # questions = questions[:1000]
+    # answers = answers[:1000]
     VOCAB_SIZE = 15001
     tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     output = decoder_dense(decoder_outputs)
 
     model = tf.keras.models.Model([encoder_inputs, decoder_inputs], output)
-    model.compile(optimizer=tf.keras.optimizers.RMSprop(), loss='sparse_categorical_crossentropy')
+    model.compile(optimizer=tf.keras.optimizers.RMSprop(), loss='sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
 
     model.summary()
 
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     checkpoint = ModelCheckpoint(filepath, verbose=1)
     callbacks_list = [checkpoint]
 
-    model.fit([encoder_input_data, decoder_input_data], decoder_output_data, callbacks=callbacks_list, batch_size=6, epochs=1)
+    model.fit([encoder_input_data, decoder_input_data], decoder_output_data, callbacks=callbacks_list, batch_size=64, epochs=4)
     model.save('model_test.h5')
 
     enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense)

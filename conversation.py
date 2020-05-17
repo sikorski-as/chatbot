@@ -3,6 +3,7 @@ from tensorflow.keras import layers, preprocessing
 from tensorflow.keras.models import Model, load_model
 import numpy as np
 
+import utils
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 import generate_multiple_answers as gma
 
@@ -71,6 +72,7 @@ def choose_beam(states_values, empty_target_seq, dec_model, end_index):
         print(decoded_translation)
     print()
 
+
 if __name__ == '__main__':
     questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
     VOCAB_SIZE = 15001
@@ -80,16 +82,8 @@ if __name__ == '__main__':
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
-    model = load_model('model_test.h5')
-
-    encoder_inputs = model.input[0]  # input_1
-    encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output  # lstm_1
-    encoder_states = [state_h_enc, state_c_enc]
-
-    decoder_inputs = model.input[1]  # input_2
-    decoder_embedding = model.layers[3].output
-    decoder_lstm = model.layers[5]
-    decoder_dense = model.layers[6]
+    encoder_inputs, encoder_states, decoder_inputs, \
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('model_test.h5')
 
     enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding,
                                                  decoder_lstm, decoder_dense)

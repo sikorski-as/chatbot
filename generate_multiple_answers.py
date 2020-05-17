@@ -1,35 +1,67 @@
 import numpy as np
 import conversation
-import tensorflow as tf
-from tensorflow.python.keras.models import load_model
-
+import utils
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
+
+from math import log
+import nltk
+from nltk.lm import Laplace, Vocabulary
+
+model = Laplace(2)  # bigramy
+
+
+def fit_mle_model(text, text_dict):
+    # text dict key: index value: text, nie ma w tokenizer domyslnie trzeba odwrocic slownik
+    tokenized_text = [[text_dict[index] for index in sentence] for sentence in text]
+    train_data = [nltk.bigrams(t) for t in tokenized_text]
+    words = [word for sentence in tokenized_text for word in sentence]
+    vocab = Vocabulary(words)
+    model.fit(train_data, vocab)
+
+
+def calculate_mle(decoded_translations: list) -> list:
+    test_data = [nltk.bigrams(t) for t in decoded_translations]
+    results = []
+    for test in test_data:
+        score = 0
+        for ngram in test:
+            score = score + log(model.score(ngram[-1], ngram[:-1]))
+        results.append(score)
+    return results
+
+
+def choose_best(decoded_translations: list):
+    # wybiera odpowiedz o najwiekszym prawdopodobienstwie
+    results = calculate_mle(decoded_translations)
+    # print(results)
+    best_index = np.argsort(results)[-1]
+    # print(best_index)
+    # print(decoded_translations[best_index])
+    return decoded_translations[best_index]
 
 
 def test():
     questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
     VOCAB_SIZE = 15001
+
     tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
+
+    reversed_tokenizer_word_dict = {index: text for text, index in tokenizer.word_index.items()}
+    fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
 
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
-    model: tf.keras.models.Model = load_model('model_test.h5')
+    encoder_inputs, encoder_states, decoder_inputs, \
+    decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('model_test.h5')
 
-    encoder_inputs = model.input[0]  # input_1
-    encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output  # lstm_1
-    encoder_states = [state_h_enc, state_c_enc]
+    enc_model, dec_model = conversation.make_inference_models(encoder_inputs, encoder_states, decoder_inputs,
+                                                              decoder_embedding,
+                                                              decoder_lstm, decoder_dense)
 
-    decoder_inputs = model.input[1]  # input_2
-    decoder_embedding = model.layers[3].output
-    decoder_lstm = model.layers[5]
-    decoder_dense = model.layers[6]
-
-    enc_model, dec_model = conversation.make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding,
-                                                 decoder_lstm, decoder_dense)
-
-    texts = ['stop talking shit', 'it is peanut butter jelly time', 'Are we going to pass this lecture', 'Where are you from',
+    texts = ['stop talking shit', 'it is peanut butter jelly time', 'Are we going to pass this lecture',
+             'Where are you from',
              'do you like me', 'carrot', 'tell me your biggest secret', 'How are you', 'do you know me',
              'what does fox say', 'i am happy', 'this is america', 'kill me', 'do not forget to brush your teeth']
     for text in texts:
@@ -38,19 +70,22 @@ def test():
         empty_target_seq = np.zeros((1, 1))
         empty_target_seq[0, 0] = tokenizer.word_index['start']
         end_index = tokenizer.word_index['end']
-        # print(end_index)
-        # dec_outputs, h, c = dec_model.predict([empty_target_seq] + states_values)
 
-        # print(dec_outputs)
         predictions, _ = beam_search(states_values, empty_target_seq, dec_model, end_index)
 
+        decoded_texts = []
         for prediction in predictions:
-            decoded_translation = ''
-            for sampled_word_index in prediction[1:]:
-                for word, index in tokenizer.word_index.items():
-                    if sampled_word_index == index:
-                        decoded_translation += ' {}'.format(word)
-            print(decoded_translation)
+            decoded_text = ['start']
+            for word_index in prediction[1:]:
+                decoded_text.append(reversed_tokenizer_word_dict[word_index])
+            decoded_texts.append(decoded_text)
+        print(choose_best(decoded_texts))
+
+        # for prediction in predictions:
+        #     decoded_translation = ''
+        #     for sampled_word_index in prediction[1:]:
+        #         decoded_translation += ' {}'.format(reversed_tokenizer_word_dict[sampled_word_index])
+        #     print(decoded_translation)
 
         # print(predictions)
         print()
@@ -90,7 +125,7 @@ def beam_search(states_values, empty_target_seq, dec_model, end_index, k=5, maxs
         # choose k-dead best
         live_scores = []
         live_samples = []
-        best_so_far = np.array(new_live_scores).argsort()[:(k-dead_k)]
+        best_so_far = np.array(new_live_scores).argsort()[:(k - dead_k)]
         for best_index in best_so_far:
             live_samples.append(new_live_samples[best_index])
             live_scores.append(new_live_scores[best_index])
