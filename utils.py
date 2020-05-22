@@ -1,7 +1,10 @@
-import os
+from cmath import log
+
+import nltk
 import tensorflow as tf
-from tensorflow_core.python.keras.callbacks import ModelCheckpoint
+from nltk.lm import Vocabulary, Laplace
 from tensorflow_core.python.keras.saving.save import load_model
+import numpy as np
 
 
 def create_keras_model(vocab_size):
@@ -27,7 +30,9 @@ def create_keras_model(vocab_size):
 
 
 def load_keras_model(file):
-    model = load_model(file)
+    # model = load_model(file)
+    model = load_model('model_test.h5')
+    model.load_weights(file)
 
     encoder_inputs = model.input[0]  # input_1
     encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output  # lstm_1
@@ -38,22 +43,50 @@ def load_keras_model(file):
     decoder_lstm = model.layers[5]
     decoder_dense = model.layers[6]
 
-    return encoder_inputs, encoder_states, decoder_inputs, \
+    return model, encoder_inputs, encoder_states, decoder_inputs, \
            decoder_embedding, decoder_lstm, decoder_dense
 
 
-def load_latest_checkpoint():
-    VOCAB_SIZE = 15001
-    model_info = create_keras_model(VOCAB_SIZE)
-    model = model_info[0]
+def fit_mle_model(text, text_dict):
+    # text dict key: index value: text, nie ma w tokenizer domyslnie trzeba odwrocic slownik
+    model = Laplace(2)
+    tokenized_text = [[text_dict[index] for index in sentence] for sentence in text]
+    train_data = [nltk.bigrams(t) for t in tokenized_text]
+    words = [word for sentence in tokenized_text for word in sentence]
+    vocab = Vocabulary(words)
+    model.fit(train_data, vocab)
+    return model
 
-    checkpoint_path = "checkpoints/train1/cp-{epoch:04d}.ckpt"
-    checkpoint_dir = os.path.dirname(checkpoint_path)
-    latest = tf.train.latest_checkpoint(checkpoint_dir)
-    print(latest)
-    model.load_weights(latest)
-    return model_info
+
+def calculate_mle(decoded_translations: list, model) -> list:
+    test_data = [nltk.bigrams(t) for t in decoded_translations]
+    results = []
+    for test in test_data:
+        score = 0
+        for ngram in test:
+            score = score + log(model.score(ngram[-1], ngram[:-1]))
+        results.append(score)
+    return results
+
+
+def calculate_perplexity(decoded_translations: list, model) -> list:
+    test_data = [nltk.bigrams(t) for t in decoded_translations]
+    results = []
+    for test in test_data:
+        score = model.perplexity(test)
+        results.append(score)
+    return results
+
+
+def choose_best(decoded_translations: list, model):
+    # wybiera odpowiedz o najwiekszym prawdopodobienstwie
+    results = calculate_perplexity(decoded_translations, model)
+    # print(results)
+    best_index = np.argsort(results)[0]
+    # print(best_index)
+    # print(decoded_translations[best_index])
+    return decoded_translations[best_index]
 
 
 if __name__ == '__main__':
-    load_latest_checkpoint()
+    load_keras_model('checkpoints/train2/cp-0004.hdf5')

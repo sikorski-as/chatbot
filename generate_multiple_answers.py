@@ -2,42 +2,7 @@ import numpy as np
 import conversation
 import utils
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
-
-from math import log
-import nltk
-from nltk.lm import Laplace, Vocabulary
-
-model = Laplace(2)  # bigramy
-
-
-def fit_mle_model(text, text_dict):
-    # text dict key: index value: text, nie ma w tokenizer domyslnie trzeba odwrocic slownik
-    tokenized_text = [[text_dict[index] for index in sentence] for sentence in text]
-    train_data = [nltk.bigrams(t) for t in tokenized_text]
-    words = [word for sentence in tokenized_text for word in sentence]
-    vocab = Vocabulary(words)
-    model.fit(train_data, vocab)
-
-
-def calculate_mle(decoded_translations: list) -> list:
-    test_data = [nltk.bigrams(t) for t in decoded_translations]
-    results = []
-    for test in test_data:
-        score = 0
-        for ngram in test:
-            score = score + log(model.score(ngram[-1], ngram[:-1]))
-        results.append(score)
-    return results
-
-
-def choose_best(decoded_translations: list):
-    # wybiera odpowiedz o najwiekszym prawdopodobienstwie
-    results = calculate_mle(decoded_translations)
-    # print(results)
-    best_index = np.argsort(results)[-1]
-    # print(best_index)
-    # print(decoded_translations[best_index])
-    return decoded_translations[best_index]
+import utils
 
 
 def test():
@@ -48,13 +13,13 @@ def test():
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
 
     reversed_tokenizer_word_dict = {index: text for text, index in tokenizer.word_index.items()}
-    fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
+    mle_model = utils.fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
 
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
     _, encoder_inputs, encoder_states, decoder_inputs, \
-        decoder_embedding, decoder_lstm, decoder_dense = utils.load_latest_checkpoint()
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('checkpoints/train2/cp-0004.hdf5')
 
     enc_model, dec_model = conversation.make_inference_models(encoder_inputs, encoder_states, decoder_inputs,
                                                               decoder_embedding,
@@ -77,9 +42,9 @@ def test():
         for prediction in predictions:
             decoded_text = ['start']
             for word_index in prediction[1:]:
-                decoded_text.append(reversed_tokenizer_word_dict[word_index])
+                decoded_text.append(reversed_tokenizer_word_dict.get(word_index, 'UNK'))
             decoded_texts.append(decoded_text)
-        print(choose_best(decoded_texts))
+        print(utils.choose_best(decoded_texts, mle_model))
 
         # for prediction in predictions:
         #     decoded_translation = ''

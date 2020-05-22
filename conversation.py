@@ -82,8 +82,8 @@ if __name__ == '__main__':
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
-    encoder_inputs, encoder_states, decoder_inputs, \
-        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('model_test.h5')
+    _, encoder_inputs, encoder_states, decoder_inputs, \
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('checkpoints/train1/cp-0001.hdf5')
 
     enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding,
                                                  decoder_lstm, decoder_dense)
@@ -93,5 +93,5 @@ if __name__ == '__main__':
         states_values = enc_model.predict(str_to_tokens(tokenizer, input('Enter question : '), max_len_questions))
         empty_target_seq = np.zeros((1, 1))
         empty_target_seq[0, 0] = tokenizer.word_index['start']
-        # choose_greedy(empty_target_seq, states_values)
-        choose_beam(states_values, empty_target_seq, dec_model, end_index)
+        choose_greedy(empty_target_seq, states_values)
+        # choose_beam(states_values, empty_target_seq, dec_model, end_index)
