@@ -53,8 +53,8 @@ def test():
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
-    encoder_inputs, encoder_states, decoder_inputs, \
-    decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('model_test.h5')
+    _, encoder_inputs, encoder_states, decoder_inputs, \
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_latest_checkpoint()
 
     enc_model, dec_model = conversation.make_inference_models(encoder_inputs, encoder_states, decoder_inputs,
                                                               decoder_embedding,
