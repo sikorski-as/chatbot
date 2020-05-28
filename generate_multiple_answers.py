@@ -6,7 +6,7 @@ import utils
 
 
 def test():
-    questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
+    questions, answers = load_data("prepare_data/output_files", "preprocessed_cornell", None)
     VOCAB_SIZE = 15001
 
     tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
@@ -19,7 +19,7 @@ def test():
         prepare_data(tokenized_questions, tokenized_answers)
 
     _, encoder_inputs, encoder_states, decoder_inputs, \
-        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('checkpoints/train2/cp-0004.hdf5')
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('cornell.hdf5')
 
     enc_model, dec_model = conversation.make_inference_models(encoder_inputs, encoder_states, decoder_inputs,
                                                               decoder_embedding,

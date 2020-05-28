@@ -1,15 +1,13 @@
-import numpy as np
 from tensorflow.python.keras.callbacks import ModelCheckpoint
-import conversation
+import params
 import utils
-from conversation import make_inference_models, str_to_tokens
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 
 if __name__ == '__main__':
-    questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
+    questions, answers = load_data(params.data_file_directory, params.files)
 
-    VOCAB_SIZE = 15001
-    tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
+    VOCAB_SIZE = params.vocab_size
+    tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, params.unknown_token)
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
 
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
@@ -20,11 +18,11 @@ if __name__ == '__main__':
 
     model.summary()
 
-    checkpoint_path = "checkpoints/train1/cp-{epoch:04d}.hdf5"
-    checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_weights_only=True, period=1)
+    checkpoint_path = params.checkpoints_save_path
+    checkpoint = ModelCheckpoint(checkpoint_path, verbose=1, save_weights_only=params.checkpoints_save_weights_only, period=params.checkpoints_frequency)
     callbacks_list = [checkpoint]
     model.save_weights(checkpoint_path.format(epoch=0))
 
-    model.fit([encoder_input_data, decoder_input_data], decoder_output_data, callbacks=callbacks_list, batch_size=64,
-              epochs=2)
-    model.save('model_test.h5')
+    model.fit([encoder_input_data, decoder_input_data], decoder_output_data, callbacks=callbacks_list,
+              batch_size=params.batch_size, epochs=params.epochs)
+    model.save(params.model_save_path)

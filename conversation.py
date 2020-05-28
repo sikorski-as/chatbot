@@ -3,10 +3,13 @@ from tensorflow.keras import layers, preprocessing
 from tensorflow.keras.models import Model, load_model
 import numpy as np
 
+import params
 import utils
+from bigrams import Bigramer
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 import generate_multiple_answers as gma
 
+bigramer = Bigramer("bigrams_best.json")
 
 def str_to_tokens(tokenizer: Tokenizer, sentence: str, max_len_questions):
     words = sentence.lower().split()
@@ -20,8 +23,8 @@ def make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decode
                           decoder_dense):
     encoder_model = Model(encoder_inputs, encoder_states)
 
-    decoder_state_input_h = layers.Input(shape=(200,), name="input_h")
-    decoder_state_input_c = layers.Input(shape=(200,), name="input_c")
+    decoder_state_input_h = layers.Input(shape=(params.decoder_state_input_h_size,), name="input_h")
+    decoder_state_input_c = layers.Input(shape=(params.decoder_state_input_h_size,), name="input_c")
 
     decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
 
@@ -70,20 +73,21 @@ def choose_beam(states_values, empty_target_seq, dec_model, end_index):
                 if sampled_word_index == index:
                     decoded_translation += ' {}'.format(word)
         print(decoded_translation)
+        print(bigramer.fill_unks(decoded_translation))
     print()
 
 
 if __name__ == '__main__':
-    questions, answers = load_data("prepare_data/output_files", "preprocessed_train")
-    VOCAB_SIZE = 15001
-    tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, 'UNK')
+    questions, answers = load_data(params.data_file_directory, params.files, params.encoding)
+    VOCAB_SIZE = params.vocab_size
+    tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, params.unknown_token)
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
 
     max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
         prepare_data(tokenized_questions, tokenized_answers)
 
     _, encoder_inputs, encoder_states, decoder_inputs, \
-        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model('checkpoints/train1/cp-0001.hdf5')
+        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model(params.model)
 
     enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding,
                                                  decoder_lstm, decoder_dense)
@@ -93,5 +97,5 @@ if __name__ == '__main__':
         states_values = enc_model.predict(str_to_tokens(tokenizer, input('Enter question : '), max_len_questions))
         empty_target_seq = np.zeros((1, 1))
         empty_target_seq[0, 0] = tokenizer.word_index['start']
-        choose_greedy(empty_target_seq, states_values)
-        # choose_beam(states_values, empty_target_seq, dec_model, end_index)
+        # choose_greedy(empty_target_seq, states_values)
+        choose_beam(states_values, empty_target_seq, dec_model, end_index)

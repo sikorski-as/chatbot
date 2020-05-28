@@ -6,9 +6,9 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 
-def load_data(directory: string, filename: string) -> (list, list):
-    with open(f"{directory}/{filename}.from", encoding="utf-8") as answers_file,\
-            open(f"{directory}/{filename}.to", encoding="utf-8") as questions_file:
+def load_data(directory: string, filename: string, encoding="utf-8") -> (list, list):
+    with open(f"{directory}/{filename}.from", encoding=encoding) as questions_file,\
+            open(f"{directory}/{filename}.to", encoding=encoding) as answers_file:
         answers_raw = answers_file.readlines()
         questions_raw = questions_file.readlines()
         answers = list()

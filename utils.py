@@ -3,22 +3,24 @@ from cmath import log
 import nltk
 import tensorflow as tf
 from nltk.lm import Vocabulary, Laplace
-from tensorflow_core.python.keras.saving.save import load_model
 import numpy as np
+from tensorflow.python.keras.saving.save import load_model
+
+import params
 
 
 def create_keras_model(vocab_size):
     encoder_inputs = tf.keras.layers.Input(shape=(None,), name="encoder_input")
-    encoder_embedding = tf.keras.layers.Embedding(vocab_size, 200, mask_zero=True, name="encoder_embedding")(
+    encoder_embedding = tf.keras.layers.Embedding(vocab_size, params.encoder_embedding_size, mask_zero=True, name="encoder_embedding")(
         encoder_inputs)
     encoder_outputs, state_h, state_c = tf.keras.layers.LSTM(200, return_state=True, name="encoder_lstm")(
         encoder_embedding)
     encoder_states = [state_h, state_c]
 
     decoder_inputs = tf.keras.layers.Input(shape=(None,), name="decoder_input")
-    decoder_embedding = tf.keras.layers.Embedding(vocab_size, 200, name="decoder_embedding", mask_zero=True)(
+    decoder_embedding = tf.keras.layers.Embedding(vocab_size, params.encoder_lstm_size, name="decoder_embedding", mask_zero=True)(
         decoder_inputs)
-    decoder_lstm = tf.keras.layers.LSTM(200, return_state=True, return_sequences=True, name="decoder_lstm")
+    decoder_lstm = tf.keras.layers.LSTM(params.decoder_lstm_size, return_state=True, return_sequences=True, name="decoder_lstm")
     decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=encoder_states)
     decoder_dense = tf.keras.layers.Dense(vocab_size, activation=tf.keras.activations.softmax, name="decoder_dense")
     output = decoder_dense(decoder_outputs)
@@ -30,9 +32,9 @@ def create_keras_model(vocab_size):
 
 
 def load_keras_model(file):
-    # model = load_model(file)
-    model = load_model('model_test.h5')
-    model.load_weights(file)
+    model = load_model(file)
+    # model = load_model('model_test.h5')
+    # model.load_weights(file)
 
     encoder_inputs = model.input[0]  # input_1
     encoder_outputs, state_h_enc, state_c_enc = model.layers[4].output  # lstm_1
