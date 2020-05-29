@@ -98,5 +98,5 @@ if __name__ == '__main__':
         states_values = enc_model.predict(str_to_tokens(tokenizer, input('Enter question : '), max_len_questions))
         empty_target_seq = np.zeros((1, 1))
         empty_target_seq[0, 0] = tokenizer.word_index['start']
-        # choose_greedy(empty_target_seq, states_values)
-        choose_beam(states_values, empty_target_seq, dec_model, end_index)
+        choose_greedy(empty_target_seq, states_values)
+        # choose_beam(states_values, empty_target_seq, dec_model, end_index)
