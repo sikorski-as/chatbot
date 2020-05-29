@@ -9,7 +9,8 @@ from bigrams import Bigramer
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 import generate_multiple_answers as gma
 
-bigramer = Bigramer("bigrams_best.json")
+bigramer = Bigramer(params.bigramer)
+
 
 def str_to_tokens(tokenizer: Tokenizer, sentence: str, max_len_questions):
     words = sentence.lower().split()
@@ -83,11 +84,11 @@ if __name__ == '__main__':
     tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, params.unknown_token)
     tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer, questions, answers)
 
-    max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = \
-        prepare_data(tokenized_questions, tokenized_answers)
+    prepared_data = prepare_data(tokenized_questions, tokenized_answers)
+    max_len_questions, max_len_answers, encoder_input_data, decoder_input_data, decoder_output_data = prepared_data
 
-    _, encoder_inputs, encoder_states, decoder_inputs, \
-        decoder_embedding, decoder_lstm, decoder_dense = utils.load_keras_model(params.model)
+    model_data = utils.load_keras_model(params.model)
+    _, encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense = model_data
 
     enc_model, dec_model = make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding,
                                                  decoder_lstm, decoder_dense)
