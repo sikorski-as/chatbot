@@ -15,10 +15,15 @@ class Bigramer:
         return self.bigrams_frequency[word]
 
     def fill_unks(self, sentence):
-        tokens = sentence.split(" ")
+        tokens = sentence.split(' ')
+        return self.replace_unks(tokens)
+
+    def replace_unks(self, tokens, starting_unknown='Hmm'):
         for i in range(len(tokens)):
             if tokens[i] == 'UNK':
-                if tokens[i - 1] != 'UNK':
+                if i == 0:
+                    tokens[i] = starting_unknown
+                elif tokens[i - 1] != 'UNK':
                     tokens[i] = self.give_word(tokens[i - 1])
         return tokens
 

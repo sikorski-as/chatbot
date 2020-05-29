@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 from tensorflow.keras import layers, preprocessing
 from tensorflow.keras.models import Model
@@ -30,7 +32,7 @@ def make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decode
     return encoder_model, decoder_model
 
 
-class Chatbot:
+class BaseChatbot:
     def __init__(self):
         # load data
         self._questions, self._answers = load_data(params.data_file_directory, params.files, params.encoding)
@@ -39,8 +41,11 @@ class Chatbot:
         # prepare data manipulators
         self._VOCAB_SIZE = params.vocab_size
         self._tokenizer = create_tokenizer(self._questions + self._answers, self._VOCAB_SIZE, params.unknown_token)
-        self._tokenized_questions, self._tokenized_answers = tokenize_q_a(self._tokenizer, self._questions,
+        self._tokenized_questions, self._tokenized_answers = tokenize_q_a(self._tokenizer,
+                                                                          self._questions,
                                                                           self._answers)
+
+        self._tokenizer_index_to_word = {index: word for (word, index) in self._tokenizer.word_index.items()}
 
         # prepare data
         prepared_data = prepare_data(self._tokenized_questions, self._tokenized_answers)
@@ -61,11 +66,13 @@ class Chatbot:
         return empty_target_seq
 
     def _str_to_tokens(self, sentence):
-        words = sentence.lower().split()
-        tokens_list = list()
-        for word in words:
-            tokens_list.append(self._tokenizer.word_index[word])
-        return preprocessing.sequence.pad_sequences([tokens_list], maxlen=self._max_len_questions, padding='post')
+        # words = sentence.lower().split()
+        # tokens_list = list()
+        # for word in words:
+        #     tokens_list.append(self._tokenizer.word_index.get(word, None))
+        tokens_list = self._tokenizer.texts_to_sequences([sentence])
+        # print(tokens_list, tokens_list2)
+        return preprocessing.sequence.pad_sequences(tokens_list, maxlen=self._max_len_questions, padding='post')
 
     def _tokens_to_str(self, tokens):
         return ' '.join(tokens)
@@ -79,11 +86,8 @@ class Chatbot:
         while not stop_condition:
             dec_outputs, h, c = self._dec_model.predict([empty_target_seq] + states_values)
             sampled_word_index = np.argmax(dec_outputs[0, -1, :])
-            sampled_word = None
-            for word, index in self._tokenizer.word_index.items():
-                if sampled_word_index == index:
-                    output_tokens.append(word)
-                    sampled_word = word
+            sampled_word = self._tokenizer_index_to_word.get(sampled_word_index, params.unknown_token)
+            output_tokens.append(sampled_word)
 
             if sampled_word == 'end' or len(output_tokens) > self._max_len_answers:
                 stop_condition = True
@@ -94,17 +98,37 @@ class Chatbot:
 
         return output_tokens[:-1]  # skip 'end' token
 
-    def one_chat(self, input):
+    def one_chat(self, input, as_tokens=False):
+        # flow: input (str) -> indexes in tokenizer ([int]) -> list of detokenized prediction ([str]) -> output (str)
+
+        # list of tokens (integers)
         tokenized_input = self._str_to_tokens(input)
+
+        # list of tokens (strings)
         tokenized_answer = self._heuristic(tokenized_input)
-        stringified_output = self._tokens_to_str(tokenized_answer)
-        return stringified_output
+        if as_tokens:
+            return tokenized_answer
+        else:
+            # lisf of tokens (strings)
+            tokens_without_unknowns = self._bigramer.replace_unks(tokenized_answer, starting_unknown='Hmm')
+
+            # output string
+            stringified_output = self._tokens_to_str(tokens_without_unknowns)
+            return stringified_output
 
     def chat(self):
         for _ in range(10):
             user_input = input('Enter question: ')
             answer = self.one_chat(user_input)
-            print(answer)
+            print('Chatbot:', answer)
+
+
+class Chatbot(BaseChatbot):
+    def _tokens_to_str(self, tokens: List[str]):
+        end_character = '?' if tokens[0] in ('where', 'what', 'who', 'is', 'are', 'how', 'when') else '.'
+        tokens[0] = tokens[0].capitalize()
+        tokens = ['I' if token == 'i' else token for token in tokens]
+        return ' '.join(tokens) + end_character
 
 
 def main():
