@@ -108,6 +108,20 @@ class Chatbot:
         tokens = ['I' if token == 'i' else token for token in tokens]
         return ' '.join(tokens) + end_character
 
+    def _give_n_decoded(self, tokens, n=1, strip_start_end=True):
+        end_index = self._tokenizer.word_index['end']
+        empty_target_seq = self._empty_sequence_factory()
+        states_values = self._enc_model.predict(tokens)
+
+        predictions, _ = gma.beam_search(states_values, empty_target_seq, self._dec_model, end_index, k=n)
+        decoded = []
+        for prediction in predictions:
+            if strip_start_end:
+                decoded.append([self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]])
+            else:
+                decoded.append(['start'] + [self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]] + ['end'])
+        return decoded
+
     def _greedy(self, tokens):
         empty_target_seq = self._empty_sequence_factory()
         states_values = self._enc_model.predict(tokens)
@@ -130,15 +144,7 @@ class Chatbot:
         return output_tokens[:-1]  # skip 'end' token
 
     def _heuristic(self, tokens):
-        end_index = self._tokenizer.word_index['end']
-        empty_target_seq = self._empty_sequence_factory()
-        states_values = self._enc_model.predict(tokens)
-
-        predictions, _ = gma.beam_search(states_values, empty_target_seq, self._dec_model, end_index, k=10)
-        decoded = []
-        for prediction in predictions:
-            decoded.append(
-                ['start'] + [self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]] + ['end'])
+        decoded = self._give_n_decoded(tokens, n=10, strip_start_end=False)
 
         # remove as many UNKs as possible
         bigrammed = [self._bigramer.replace_unks(words) for words in decoded]
@@ -189,8 +195,8 @@ class Chatbot:
 def main():
     warnings.simplefilter('ignore')
     # bot = Chatbot.load_setup('setups/reddit100/reddit100.json')
-    # bot = Chatbot.load_setup('setups/cornell/cornell.json')
-    bot = Chatbot.load_from_params()  # load from params.py
+    bot = Chatbot.load_setup('setups/cornell/cornell.json')
+    # bot = Chatbot.load_from_params()  # load from params.py
     bot.chat(ntimes=10, as_tokens=True)  # as_tokens=False for pretty chatbot answers
 
 
