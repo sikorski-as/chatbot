@@ -27,12 +27,13 @@ class Chatbot:
                                                                        self._decoder_lstm, self._decoder_dense)
 
     @classmethod
-    def load_setup(cls, setup_filename):
+    def load_setup(cls, setup_filename, alternative_model_file=None):
         """
         Creates a chatbot from setup bundle.
         Preferred for production.
 
         :param setup_filename: path to json file with setup info.
+        :param alternative_model_file: alternative file to load TF model from (instead of the one from setup .json file)
         :return: Chatbot initialized from setup bundle.
         """
         setup = utils.load_and_unjson(setup_filename)
@@ -40,7 +41,10 @@ class Chatbot:
         tokenizer = utils.load_and_unpickle(setup_directory / setup['tokenizer'])
         mle_model = utils.load_and_unpickle(setup_directory / setup['mle_model'])
         bigramer = Bigramer(dict=utils.load_and_unjson(setup_directory / setup['bigramer']))
-        return cls(setup_directory / setup['model'],
+
+        model_filename = alternative_model_file if alternative_model_file is not None \
+            else setup_directory / setup['model']
+        return cls(model_filename,
                    tokenizer,
                    mle_model,
                    bigramer,
