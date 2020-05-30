@@ -2,15 +2,18 @@ import nltk
 
 import params
 import utils
+import pathlib
+import shutil
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 
 if __name__ == '__main__':
     #
     # setup file data
     #
-    setup_file_name = params.files
+    setup_name = params.files
+    model_filename = f'{setup_name}.hdf5'
     setup = {
-        'model': params.model,
+        'model': model_filename,
         'tokenizer': f'{params.files}.tokenizer',
         'bigramer': f'{params.files}.bigramer',
         'mle_model': f'{params.files}.mle',
@@ -20,6 +23,10 @@ if __name__ == '__main__':
         'encoding': params.encoding,
         'unknown_token': params.unknown_token
     }
+
+    setup_path = pathlib.Path(f'setups/{setup_name}')
+    setup_path.mkdir(parents=True, exist_ok=True)
+    model_file_path = shutil.copy(params.model, setup_path / model_filename)
 
     #
     # load raw data
@@ -46,7 +53,7 @@ if __name__ == '__main__':
     setup['max_len_questions'] = max_len_questions
     setup['max_len_answers'] = max_len_answers
 
-    utils.pickle_and_save(tokenizer, setup['tokenizer'])
+    utils.pickle_and_save(tokenizer, setup_path / setup['tokenizer'])
     print('Tokenizer created and saved!')
 
     #
@@ -54,7 +61,7 @@ if __name__ == '__main__':
     #
     print('Creating MLE model!')
     mle_model = utils.fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
-    utils.pickle_and_save(tokenizer, setup['mle_model'])
+    utils.pickle_and_save(tokenizer, setup_path / setup['mle_model'])
     print('MLE model created and saved!')
 
     #
@@ -81,11 +88,11 @@ if __name__ == '__main__':
         bigrams_frequency_best[first] = \
             sorted(bigrams_frequency[first].items(), key=lambda x: x[1], reverse=True)[0][0]
 
-    utils.json_and_save(bigrams_frequency_best, setup['bigramer'], nice=True)
+    utils.json_and_save(bigrams_frequency_best, setup_path / setup['bigramer'], nice=True)
     print('Bigramer created and saved!')
 
     #
     # save setup file
     #
-    utils.json_and_save(setup, f'{setup_file_name}.json', nice=True)
+    utils.json_and_save(setup, setup_path / f'{setup_name}.json', nice=True)
     print('Setup created!')

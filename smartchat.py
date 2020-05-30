@@ -74,12 +74,7 @@ class Chatbot:
         return empty_target_seq
 
     def _str_to_tokens(self, sentence):
-        # words = sentence.lower().split()
-        # tokens_list = list()
-        # for word in words:
-        #     tokens_list.append(self._tokenizer.word_index.get(word, None))
         tokens_list = self._tokenizer.texts_to_sequences([sentence])
-        # print(tokens_list, tokens_list2)
         return preprocessing.sequence.pad_sequences(tokens_list, maxlen=self._max_len_questions, padding='post')
 
     def _tokens_to_str(self, tokens: List[str]):
@@ -135,8 +130,7 @@ class Chatbot:
 
 
 def main():
-    # bot = Chatbot.load_from_params()
-    bot = Chatbot.load_setup('setups/cornell/preprocessed_cornell.json')
+    bot = Chatbot.load_from_params()
     bot.chat()
 
 
