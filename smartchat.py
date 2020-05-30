@@ -28,11 +28,18 @@ class Chatbot:
 
     @classmethod
     def load_setup(cls, setup_filename):
+        """
+        Creates a chatbot from setup bundle.
+        Preferred for production.
+
+        :param setup_filename: path to json file with setup info.
+        :return: Chatbot initialized from setup bundle.
+        """
         setup = utils.load_and_unjson(setup_filename)
         setup_directory = pathlib.Path(setup_filename).parent
         tokenizer = utils.load_and_unpickle(setup_directory / setup['tokenizer'])
         mle_model = utils.load_and_unpickle(setup_directory / setup['mle_model'])
-        bigramer = Bigramer(setup_directory / setup['bigramer'])
+        bigramer = Bigramer(dict=utils.load_and_unjson(setup_directory / setup['bigramer']))
         return cls(setup_directory / setup['model'],
                    tokenizer,
                    mle_model,
@@ -42,6 +49,13 @@ class Chatbot:
 
     @classmethod
     def load_from_params(cls):
+        """
+        Creates a chatbot from params.py.
+        Good for development, not for production.
+
+        :return: Chatbot initialized from params.py.
+        """
+
         import params
         # load data
         questions, answers = load_data(params.data_file_directory, params.files, params.encoding)
@@ -130,7 +144,7 @@ class Chatbot:
 
 
 def main():
-    bot = Chatbot.load_from_params()
+    bot = Chatbot.load_setup('setups/cornell/cornell.json')
     bot.chat()
 
 

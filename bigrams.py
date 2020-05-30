@@ -7,9 +7,13 @@ from data import load_data, create_tokenizer, tokenize_q_a
 
 
 class Bigramer:
-    def __init__(self, file):
-        with open(file, "r") as f:
-            self.bigrams_frequency = json.loads(f.read())
+    def __init__(self, file=None, dict=None):
+        self.bigrams_frequency = {}
+        if file is not None:
+            with open(file, "r") as f:
+                self.bigrams_frequency = json.loads(f.read())
+        elif dict is not None:
+            self.bigrams_frequency = dict
 
     def give_word(self, word):
         return self.bigrams_frequency[word]
