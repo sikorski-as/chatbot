@@ -2,63 +2,71 @@ from typing import List
 
 import numpy as np
 from tensorflow.keras import layers, preprocessing
-from tensorflow.keras.models import Model
+import pathlib
 
-import params
 import utils
 from bigrams import Bigramer
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 
 
-def make_inference_models(encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm,
-                          decoder_dense):
-    encoder_model = Model(encoder_inputs, encoder_states)
-
-    decoder_state_input_h = layers.Input(shape=(params.decoder_state_input_h_size,), name="input_h")
-    decoder_state_input_c = layers.Input(shape=(params.decoder_state_input_h_size,), name="input_c")
-
-    decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-
-    decoder_outputs, state_h_dec, state_c_dec = decoder_lstm(
-        decoder_embedding, initial_state=decoder_states_inputs)
-    decoder_states = [state_h_dec, state_c_dec]
-
-    decoder_outputs = decoder_dense(decoder_outputs)
-
-    decoder_model = Model(
-        [decoder_inputs] + decoder_states_inputs,
-        [decoder_outputs] + decoder_states)
-
-    return encoder_model, decoder_model
-
-
-class BaseChatbot:
-    def __init__(self):
-        # load data
-        self._questions, self._answers = load_data(params.data_file_directory, params.files, params.encoding)
-        self._bigramer = Bigramer(params.bigramer)
-
-        # prepare data manipulators
-        self._VOCAB_SIZE = params.vocab_size
-        self._tokenizer = create_tokenizer(self._questions + self._answers, self._VOCAB_SIZE, params.unknown_token)
-        self._tokenized_questions, self._tokenized_answers = tokenize_q_a(self._tokenizer,
-                                                                          self._questions,
-                                                                          self._answers)
-
+class Chatbot:
+    def __init__(self, model_filename, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers):
+        self._tokenizer = tokenizer
         self._tokenizer_index_to_word = {index: word for (word, index) in self._tokenizer.word_index.items()}
 
+        self._mle_model = mle_model
+        self._bigramer = bigramer
+        self._max_len_questions = max_len_questions
+        self._max_len_answers = max_len_answers
+
+        model_data = utils.load_keras_model(model_filename)
+        _, self._encoder_inputs, self._encoder_states, self._decoder_inputs, self._decoder_embedding, self._decoder_lstm, self._decoder_dense = model_data
+
+        self._enc_model, self._dec_model = utils.make_inference_models(self._encoder_inputs, self._encoder_states,
+                                                                       self._decoder_inputs, self._decoder_embedding,
+                                                                       self._decoder_lstm, self._decoder_dense)
+
+    @classmethod
+    def load_setup(cls, setup_filename):
+        setup = utils.load_and_unjson(setup_filename)
+        setup_directory = pathlib.Path(setup_filename).parent
+        tokenizer = utils.load_and_unpickle(setup_directory / setup['tokenizer'])
+        mle_model = utils.load_and_unpickle(setup_directory / setup['mle_model'])
+        bigramer = Bigramer(setup_directory / setup['bigramer'])
+        return cls(setup_directory / setup['model'],
+                   tokenizer,
+                   mle_model,
+                   bigramer,
+                   setup['max_len_questions'],
+                   setup['max_len_answers'])
+
+    @classmethod
+    def load_from_params(cls):
+        import params
+        # load data
+        questions, answers = load_data(params.data_file_directory, params.files, params.encoding)
+        bigramer = Bigramer(params.bigramer)
+
+        # prepare data manipulators
+        VOCAB_SIZE = params.vocab_size
+        tokenizer = create_tokenizer(questions + answers, VOCAB_SIZE, params.unknown_token)
+        tokenized_questions, tokenized_answers = tokenize_q_a(tokenizer,
+                                                              questions,
+                                                              answers)
+
         # prepare data
-        prepared_data = prepare_data(self._tokenized_questions, self._tokenized_answers)
-        self._max_len_questions, self._max_len_answers, self._encoder_input_data, self._decoder_input_data, self._decoder_output_data = prepared_data
+        prepared_data = prepare_data(tokenized_questions, tokenized_answers)
+        max_len_questions, max_len_answers, *_ = prepared_data
+
+        # mle_model
+        reversed_tokenizer_word_dict = {index: word for (word, index) in tokenizer.word_index.items()}
+        mle_model = utils.fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
 
         # load model
         model_data = utils.load_keras_model(params.model)
-        _, self._encoder_inputs, self._encoder_states, self._decoder_inputs, self._decoder_embedding, self._decoder_lstm, self._decoder_dense = model_data
+        _, encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense = model_data
 
-        # prepare encoder/decoder models
-        self._enc_model, self._dec_model = make_inference_models(self._encoder_inputs, self._encoder_states,
-                                                                 self._decoder_inputs, self._decoder_embedding,
-                                                                 self._decoder_lstm, self._decoder_dense)
+        return cls(params.model, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers)
 
     def _empty_sequence_factory(self):
         empty_target_seq = np.zeros((1, 1))
@@ -74,8 +82,11 @@ class BaseChatbot:
         # print(tokens_list, tokens_list2)
         return preprocessing.sequence.pad_sequences(tokens_list, maxlen=self._max_len_questions, padding='post')
 
-    def _tokens_to_str(self, tokens):
-        return ' '.join(tokens)
+    def _tokens_to_str(self, tokens: List[str]):
+        end_character = '?' if tokens[0] in ('where', 'what', 'who', 'is', 'are', 'how', 'when') else '.'
+        tokens[0] = tokens[0].capitalize()
+        tokens = ['I' if token == 'i' else token for token in tokens]
+        return ' '.join(tokens) + end_character
 
     def _heuristic(self, tokens):
         empty_target_seq = self._empty_sequence_factory()
@@ -86,7 +97,7 @@ class BaseChatbot:
         while not stop_condition:
             dec_outputs, h, c = self._dec_model.predict([empty_target_seq] + states_values)
             sampled_word_index = np.argmax(dec_outputs[0, -1, :])
-            sampled_word = self._tokenizer_index_to_word.get(sampled_word_index, params.unknown_token)
+            sampled_word = self._tokenizer_index_to_word.get(sampled_word_index, 'UNK')
             output_tokens.append(sampled_word)
 
             if sampled_word == 'end' or len(output_tokens) > self._max_len_answers:
@@ -123,16 +134,9 @@ class BaseChatbot:
             print('Chatbot:', answer)
 
 
-class Chatbot(BaseChatbot):
-    def _tokens_to_str(self, tokens: List[str]):
-        end_character = '?' if tokens[0] in ('where', 'what', 'who', 'is', 'are', 'how', 'when') else '.'
-        tokens[0] = tokens[0].capitalize()
-        tokens = ['I' if token == 'i' else token for token in tokens]
-        return ' '.join(tokens) + end_character
-
-
 def main():
-    bot = Chatbot()
+    # bot = Chatbot.load_from_params()
+    bot = Chatbot.load_setup('setups/cornell/preprocessed_cornell.json')
     bot.chat()
 
 
