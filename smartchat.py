@@ -4,13 +4,15 @@ import numpy as np
 from tensorflow.keras import layers, preprocessing
 import pathlib
 
+import generate_multiple_answers as gma
 import utils
 from bigrams import Bigramer
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
+import warnings
 
 
 class Chatbot:
-    def __init__(self, model_filename, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers):
+    def __init__(self, model_filename, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers, strategy):
         self._tokenizer = tokenizer
         self._tokenizer_index_to_word = {index: word for (word, index) in self._tokenizer.word_index.items()}
 
@@ -25,6 +27,7 @@ class Chatbot:
         self._enc_model, self._dec_model = utils.make_inference_models(self._encoder_inputs, self._encoder_states,
                                                                        self._decoder_inputs, self._decoder_embedding,
                                                                        self._decoder_lstm, self._decoder_dense)
+        self._strategy = strategy
 
     @classmethod
     def load_setup(cls, setup_filename, alternative_model_file=None):
@@ -49,7 +52,8 @@ class Chatbot:
                    mle_model,
                    bigramer,
                    setup['max_len_questions'],
-                   setup['max_len_answers'])
+                   setup['max_len_answers'],
+                   setup['strategy'])
 
     @classmethod
     def load_from_params(cls):
@@ -84,7 +88,7 @@ class Chatbot:
         model_data = utils.load_keras_model(params.model)
         _, encoder_inputs, encoder_states, decoder_inputs, decoder_embedding, decoder_lstm, decoder_dense = model_data
 
-        return cls(params.model, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers)
+        return cls(params.model, tokenizer, mle_model, bigramer, max_len_questions, max_len_answers, params.strategy)
 
     def _empty_sequence_factory(self):
         empty_target_seq = np.zeros((1, 1))
@@ -96,12 +100,15 @@ class Chatbot:
         return preprocessing.sequence.pad_sequences(tokens_list, maxlen=self._max_len_questions, padding='post')
 
     def _tokens_to_str(self, tokens: List[str]):
+        if len(tokens) == 0:
+            return 'Hmm.'  # when nothing useful was returned by the chatbot
+
         end_character = '?' if tokens[0] in ('where', 'what', 'who', 'is', 'are', 'how', 'when') else '.'
         tokens[0] = tokens[0].capitalize()
         tokens = ['I' if token == 'i' else token for token in tokens]
         return ' '.join(tokens) + end_character
 
-    def _heuristic(self, tokens):
+    def _greedy(self, tokens):
         empty_target_seq = self._empty_sequence_factory()
         states_values = self._enc_model.predict(tokens)
 
@@ -122,6 +129,33 @@ class Chatbot:
 
         return output_tokens[:-1]  # skip 'end' token
 
+    def _heuristic(self, tokens):
+        end_index = self._tokenizer.word_index['end']
+        empty_target_seq = self._empty_sequence_factory()
+        states_values = self._enc_model.predict(tokens)
+
+        predictions, _ = gma.beam_search(states_values, empty_target_seq, self._dec_model, end_index, k=10)
+        decoded = []
+        for prediction in predictions:
+            decoded.append(
+                ['start'] + [self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]] + ['end'])
+
+        # remove as many UNKs as possible
+        bigrammed = [self._bigramer.replace_unks(words) for words in decoded]
+        without_unks = [words for words in bigrammed if 'UNK' not in words]
+
+        best = None
+        if len(without_unks) == 0:
+            # jeśli każdy zawiera co najmniej jednego UNK, to wybieramy najlepszy i usuwamy z niego UNKi
+            best = utils.choose_best(bigrammed, self._mle_model)
+            best = [word for word in best if word != 'UNK']
+        else:
+            # w przeciwnym razie wybieramy najlepszego spośród tych bez UNKów
+            best = utils.choose_best(without_unks, self._mle_model)
+
+        best = best[1:-1]  # strip 'start' and 'end'
+        return best
+
     def one_chat(self, input, as_tokens=False):
         # flow: input (str) -> indexes in tokenizer ([int]) -> list of detokenized prediction ([str]) -> output (str)
 
@@ -129,7 +163,11 @@ class Chatbot:
         tokenized_input = self._str_to_tokens(input)
 
         # list of tokens (strings)
-        tokenized_answer = self._heuristic(tokenized_input)
+        if self._strategy == 'heuristic':
+            tokenized_answer = self._heuristic(tokenized_input)
+        else:  # greedy strategy is default
+            tokenized_answer = self._greedy(tokenized_input)
+
         if as_tokens:
             return tokenized_answer
         else:
@@ -140,16 +178,19 @@ class Chatbot:
             stringified_output = self._tokens_to_str(tokens_without_unknowns)
             return stringified_output
 
-    def chat(self):
-        for _ in range(10):
+    def chat(self, ntimes=10, as_tokens=False):
+        for _ in range(ntimes):
             user_input = input('Enter question: ')
-            answer = self.one_chat(user_input)
+            answer = self.one_chat(user_input, as_tokens=as_tokens)
             print('Chatbot:', answer)
 
 
 def main():
-    bot = Chatbot.load_setup('setups/cornell/cornell.json')
-    bot.chat()
+    warnings.simplefilter('ignore')
+    # bot = Chatbot.load_setup('setups/reddit100/reddit100.json')
+    # bot = Chatbot.load_setup('setups/cornell/cornell.json')
+    bot = Chatbot.load_from_params()  # load from params.py
+    bot.chat(ntimes=10, as_tokens=True)  # as_tokens=False for pretty chatbot answers
 
 
 if __name__ == '__main__':

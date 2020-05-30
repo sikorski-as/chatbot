@@ -19,6 +19,7 @@ if __name__ == '__main__':
         'mle_model': f'{setup_name}.mle',
         'max_len_questions': 0,
         'max_len_answers': 0,
+        'strategy': 'greedy',
         'vocab_size': params.vocab_size,
         'encoding': params.encoding,
         'unknown_token': params.unknown_token

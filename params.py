@@ -29,6 +29,7 @@ checkpoints_save_path = "checkpoints/train1/cp-{epoch:04d}.hdf5"
 # usage
 bigramer = "preprocessed_big_train_bigramer"
 model = "checkpoints/train2/cp-0030.hdf5"
+strategy = 'greedy'
 
 #
 # for cornell dataset
@@ -61,3 +62,4 @@ model = "checkpoints/train2/cp-0030.hdf5"
 # # usage
 # bigramer = "preprocessed_cornell_bigramer"
 # model = "checkpoints/cornell/cp-0090.hdf5"
+# strategy = 'greedy'
