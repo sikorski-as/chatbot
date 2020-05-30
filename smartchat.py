@@ -148,7 +148,7 @@ class Chatbot:
         if len(without_unks) == 0:
             # jeśli każdy zawiera co najmniej jednego UNK, to wybieramy najlepszy i usuwamy z niego UNKi
             best = utils.choose_best(bigrammed, self._mle_model)
-            best = [word for word in best if word != 'UNK']
+            best = self._bigramer.strip_unks(best)
         else:
             # w przeciwnym razie wybieramy najlepszego spośród tych bez UNKów
             best = utils.choose_best(without_unks, self._mle_model)
@@ -173,6 +173,7 @@ class Chatbot:
         else:
             # lisf of tokens (strings)
             tokens_without_unknowns = self._bigramer.replace_unks(tokenized_answer, starting_unknown='Hmm')
+            tokens_without_unknowns = self._bigramer.strip_unks(tokens_without_unknowns)
 
             # output string
             stringified_output = self._tokens_to_str(tokens_without_unknowns)

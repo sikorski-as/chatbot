@@ -31,6 +31,9 @@ class Bigramer:
                     tokens[i] = self.give_word(tokens[i - 1])
         return tokens
 
+    def strip_unks(self, tokens):
+        return [token for token in tokens if token != 'UNK']
+
 
 if __name__ == '__main__':
     questions, answers = load_data(params.data_file_directory, params.files, params.encoding)
