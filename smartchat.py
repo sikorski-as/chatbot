@@ -96,10 +96,22 @@ class Chatbot:
         return empty_target_seq
 
     def _str_to_tokens(self, sentence):
+        """
+        Turn string into list of ints (indices of words in tokenizer)
+
+        :param sentence: string with a full sentence
+        :return: list of ints (indices of words in tokenizer) padded with zeros
+        """
         tokens_list = self._tokenizer.texts_to_sequences([sentence])
         return preprocessing.sequence.pad_sequences(tokens_list, maxlen=self._max_len_questions, padding='post')
 
     def _tokens_to_str(self, tokens: List[str]):
+        """
+        Turn list of strings (tokens) into a user-friendly sentence.
+
+        :param tokens: list of strings
+        :return: pretty sentence as a string
+        """
         if len(tokens) == 0:
             return 'Hmm.'  # when nothing useful was returned by the chatbot
 
@@ -109,6 +121,14 @@ class Chatbot:
         return ' '.join(tokens) + end_character
 
     def _give_n_decoded(self, tokens, n=1, strip_start_end=True):
+        """
+        Give N beam-search answers from a chatbot as a list of lists of strings (tokens).
+
+        :param tokens: list of ints (indices of words in tokenizer)
+        :param n: number of anwers
+        :param strip_start_end: if 'start' and 'end' tokens should be removed from each answer or not
+        :return: list of answers (list of string tokens)
+        """
         end_index = self._tokenizer.word_index['end']
         empty_target_seq = self._empty_sequence_factory()
         states_values = self._enc_model.predict(tokens)
@@ -195,8 +215,8 @@ class Chatbot:
 def main():
     warnings.simplefilter('ignore')
     # bot = Chatbot.load_setup('setups/reddit100/reddit100.json')
-    bot = Chatbot.load_setup('setups/cornell/cornell.json')
-    # bot = Chatbot.load_from_params()  # load from params.py
+    # bot = Chatbot.load_setup('setups/cornell/cornell.json')
+    bot = Chatbot.load_from_params()  # load from params.py
     bot.chat(ntimes=10, as_tokens=True)  # as_tokens=False for pretty chatbot answers
 
 
