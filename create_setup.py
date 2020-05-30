@@ -10,13 +10,13 @@ if __name__ == '__main__':
     #
     # setup file data
     #
-    setup_name = params.files
+    setup_name = params.files  # tu można dać w sumie cokolwiek innego, to tylko nazwa
     model_filename = f'{setup_name}.hdf5'
     setup = {
         'model': model_filename,
-        'tokenizer': f'{params.files}.tokenizer',
-        'bigramer': f'{params.files}.bigramer',
-        'mle_model': f'{params.files}.mle',
+        'tokenizer': f'{setup_name}.tokenizer',
+        'bigramer': f'{setup_name}.bigramer',
+        'mle_model': f'{setup_name}.mle',
         'max_len_questions': 0,
         'max_len_answers': 0,
         'vocab_size': params.vocab_size,
