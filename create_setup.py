@@ -61,7 +61,7 @@ if __name__ == '__main__':
     #
     print('Creating MLE model!')
     mle_model = utils.fit_mle_model(tokenized_answers, reversed_tokenizer_word_dict)
-    utils.pickle_and_save(tokenizer, setup_path / setup['mle_model'])
+    utils.pickle_and_save(mle_model, setup_path / setup['mle_model'])
     print('MLE model created and saved!')
 
     #
