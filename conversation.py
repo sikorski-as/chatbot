@@ -9,14 +9,18 @@ from bigrams import Bigramer
 from data import load_data, create_tokenizer, tokenize_q_a, prepare_data
 import generate_multiple_answers as gma
 
-bigramer = Bigramer(params.bigramer)
+# bigramer = Bigramer(params.bigramer)
 
 
 def str_to_tokens(tokenizer: Tokenizer, sentence: str, max_len_questions):
     words = sentence.lower().split()
     tokens_list = list()
     for word in words:
-        tokens_list.append(tokenizer.word_index[word])
+        token = tokenizer.word_index.get(word, tokenizer.word_index['UNK'])
+        if token < params.vocab_size:
+            tokens_list.append(token)
+        else:
+            tokens_list.append(tokenizer.word_index['UNK'])
     return preprocessing.sequence.pad_sequences([tokens_list], maxlen=max_len_questions, padding='post')
 
 
@@ -74,7 +78,7 @@ def choose_beam(states_values, empty_target_seq, dec_model, end_index):
                 if sampled_word_index == index:
                     decoded_translation += ' {}'.format(word)
         print(decoded_translation)
-        print(bigramer.fill_unks(decoded_translation))
+        # print(bigramer.fill_unks(decoded_translation))
     print()
 
 

@@ -3,7 +3,7 @@
 #
 
 # overall
-encoding = 'utf8'
+encoding = 'utf-8'
 vocab_size = 15001
 unknown_token = "UNK"
 
@@ -31,6 +31,12 @@ bigramer = "preprocessed_big_train_bigramer"
 model = "checkpoints/train2/cp-0030.hdf5"
 strategy = 'greedy'
 
+
+# analyzis
+dir_name = "checkpoints/train1/"
+test_files = "preprocessed_big_test"
+perplexity_file = "perplexity_score"
+model_summary_file = "model_score"
 #
 # for cornell dataset
 #

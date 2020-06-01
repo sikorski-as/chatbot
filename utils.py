@@ -82,10 +82,17 @@ def fit_mle_model(text, text_dict):
     # text dict key: index value: text, nie ma w tokenizer domyslnie trzeba odwrocic slownik
     model = Laplace(2)
     tokenized_text = [[text_dict[index] for index in sentence] for sentence in text]
-    train_data = [nltk.bigrams(t) for t in tokenized_text]
+    train_data = [list(nltk.bigrams(t)) for t in tokenized_text]
+    train_data_without_unk = []
+    for bigrams in train_data:
+        filtered_text = []
+        for bigram in bigrams:
+            if bigram[0] != 'UNK' and bigram[1] != 'UNK':
+                filtered_text.append(bigram)
+        train_data_without_unk.append(filtered_text)
     words = [word for sentence in tokenized_text for word in sentence]
     vocab = Vocabulary(words)
-    model.fit(train_data, vocab)
+    model.fit(train_data_without_unk, vocab)
     return model
 
 
@@ -133,13 +140,16 @@ def calculate_perplexity(decoded_translations: list, model) -> list:
     return results
 
 
-def choose_best(decoded_translations: list, model):
+def choose_best(decoded_translations: list, model, return_score=False):
     # wybiera odpowiedz o najwiekszym prawdopodobienstwie
     results = calculate_perplexity(decoded_translations, model)
-    # print(results)
+    print(decoded_translations)
+    print(results)
     best_index = np.argsort(results)[0]
     # print(best_index)
     # print(decoded_translations[best_index])
+    if return_score:
+        return decoded_translations[best_index], results[best_index]
     return decoded_translations[best_index]
 
 
