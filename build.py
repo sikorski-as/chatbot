@@ -30,7 +30,7 @@ _build_dir = 'chatbot-build'
 
 
 def main():
-    answer = input('Directory "build" will be removed (if exists) with all of its content. y/n?')
+    answer = input(f'Directory "{_build_dir}" will be removed (if exists) with all of its content. y/n? ')
     if answer == 'y':
         # clear and create build directory
         shutil.rmtree(_build_dir, ignore_errors=True)
@@ -70,7 +70,7 @@ def main():
             shutil.copytree(dir, destination)
         print(f'Finished copying dirs to {build_bin_path}')
 
-        print('Done')
+        print(f'Done. Project built to {build_path}/')
     else:
         print('aborted')
 
