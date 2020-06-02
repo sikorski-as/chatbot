@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import numpy as np
@@ -139,7 +140,8 @@ class Chatbot:
             if strip_start_end:
                 decoded.append([self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]])
             else:
-                decoded.append(['start'] + [self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]] + ['end'])
+                decoded.append(
+                    ['start'] + [self._tokenizer_index_to_word.get(i, 'UNK') for i in prediction[1:-1]] + ['end'])
         return decoded
 
     def _greedy(self, tokens):
@@ -211,13 +213,39 @@ class Chatbot:
             answer = self.one_chat(user_input, as_tokens=as_tokens)
             print('Chatbot:', answer)
 
+    def chat_forever(self, as_tokens=False):
+        while True:
+            user_input = input('Enter question: ')
+            answer = self.one_chat(user_input, as_tokens=as_tokens)
+            print('Chatbot:', answer)
+
 
 def main():
+    setups_dir = '../setups/'
     warnings.simplefilter('ignore')
-    # bot = Chatbot.load_setup('setups/reddit100/reddit100.json')
-    # bot = Chatbot.load_setup('setups/cornell/cornell.json')
-    bot = Chatbot.load_from_params()  # load from params.py
-    bot.chat(ntimes=10, as_tokens=True)  # as_tokens=False for pretty chatbot answers
+    print('Enter name of a setup to start. Available setups:')
+
+    available_setups = os.listdir(setups_dir)
+    for setup_name in available_setups:
+        print(setup_name)
+    choice = input('>')
+
+    bot = None
+    try:
+        setup_path = pathlib.Path(setups_dir) / choice / f'{choice}.json'
+        bot = Chatbot.load_setup(setup_path)
+    except:
+        print('Something went wrong when loading a setup for chatbot. Are you sure you entered a proper setup name?')
+        exit(1)
+
+    try:
+        print(f'Loaded setup "{choice}". Ctrl+C to stop the conversation and exit. ')
+        bot.chat_forever()
+    except KeyboardInterrupt:
+        print('Conversation has ended')
+        exit(0)
+    except:
+        print('Something went wrong with the chatbot, exiting... ')
 
 
 if __name__ == '__main__':
