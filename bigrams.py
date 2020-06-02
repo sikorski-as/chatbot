@@ -16,7 +16,7 @@ class Bigramer:
             self.bigrams_frequency = dict
 
     def give_word(self, word):
-        return self.bigrams_frequency[word]
+        return self.bigrams_frequency.get(word, "UNK")
 
     def fill_unks(self, sentence):
         tokens = sentence.split(' ')
