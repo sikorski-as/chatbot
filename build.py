@@ -10,6 +10,7 @@ _bin_files = [
     'smartchat.py',
     'params.py',
     'utils.py',
+    'bigrams.py',
     'data.py',
     'conversation.py',
     'generate_multiple_answers.py',
@@ -20,6 +21,7 @@ _bin_dirs = [
 ]
 
 _files = [
+    'README.md',
     'install.sh',
     'run.sh',
     'install.bat',

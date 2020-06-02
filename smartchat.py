@@ -221,7 +221,7 @@ class Chatbot:
 
 
 def main():
-    setups_dir = '../setups/'
+    setups_dir = 'setups/'
     warnings.simplefilter('ignore')
     print('Enter name of a setup to start. Available setups:')
 
