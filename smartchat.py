@@ -226,8 +226,8 @@ def main():
     print('Enter name of a setup to start. Available setups:')
 
     available_setups = os.listdir(setups_dir)
-    for setup_name in available_setups:
-        print(setup_name)
+    for i, setup_name in enumerate(available_setups, start=1):
+        print(f'{i}. {setup_name}')
     choice = input('>')
 
     bot = None
