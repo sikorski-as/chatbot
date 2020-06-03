@@ -143,8 +143,8 @@ def calculate_perplexity(decoded_translations: list, model) -> list:
 def choose_best(decoded_translations: list, model, return_score=False):
     # wybiera odpowiedz o najwiekszym prawdopodobienstwie
     results = calculate_perplexity(decoded_translations, model)
-    print(decoded_translations)
-    print(results)
+    # print(decoded_translations)
+    # print(results)
     best_index = np.argsort(results)[0]
     # print(best_index)
     # print(decoded_translations[best_index])
